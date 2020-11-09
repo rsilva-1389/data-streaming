@@ -1,0 +1,126 @@
+version: '2'
+services:
+  db.cdc:
+    image: postgres:12.0
+    hostname: db.cdc
+    container_name: db.cdc
+    environment:
+      POSTGRES_USER: 'admin'
+      POSTGRES_PASSWORD: 'admin'
+    volumes:
+      - ./config/etl/1-config_db_etl.sql:/docker-entrypoint-initdb.d/1-config_db_etl.sql
+      - ./config/etl/2-initial-data.sql:/docker-entrypoint-initdb.d/2-initial-data.sql
+      - ./.db-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    networks:
+      - cdc_network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.5.1
+    hostname: zookeeper
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 2181:2181
+    networks:
+      - cdc_network
+
+  kafka.broker:
+    image: confluentinc/cp-kafka:5.5.1
+    hostname: kafka.broker
+    container_name: kafka.broker
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka.broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+      - 9092:9092
+      - 9101:9101
+    networks:
+      - cdc_network
+
+  kafka.schema-registry:
+    image: confluentinc/cp-schema-registry:5.5.1
+    hostname: kafka.schema-registry
+    container_name: kafka.schema-registry
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: kafka.schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: 'zookeeper:2181'
+    depends_on:
+      - zookeeper
+      - kafka.broker
+    ports:
+      - 8081:8081
+    networks:
+      - cdc_network
+
+  kafka.rest-proxy:
+    image: confluentinc/cp-kafka-rest:5.5.1
+    hostname: kafka.rest-proxy
+    container_name: kafka.rest-proxy
+    environment:
+      KAFKA_REST_HOST_NAME: kafka.rest-proxy
+      KAFKA_REST_BOOTSTRAP_SERVERS: 'kafka.broker:29092'
+      KAFKA_REST_LISTENERS: "http://0.0.0.0:8082"
+      KAFKA_REST_SCHEMA_REGISTRY_URL: 'http://kafka.schema-registry:8081'
+    depends_on:
+      - zookeeper
+      - kafka.broker
+      - kafka.schema-registry
+    ports:
+      - 8082:8082
+    networks:
+      - cdc_network
+
+  debezium.etl-database:
+    build: ./config/debezium
+    image: debezium/connect:cdc
+    hostname: debezium.etl-database
+    container_name: debezium.etl-database
+    environment:
+      BOOTSTRAP_SERVERS: kafka.broker:29092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: debezium.etl-database.configs
+      OFFSET_STORAGE_TOPIC: debezium.etl-database.offsets
+      STATUS_STORAGE_TOPIC: debezium.etl-database.statuses
+    depends_on:
+      - zookeeper
+      - kafka.broker
+      - kafka.schema-registry
+      - kafka.rest-proxy
+    ports:
+      - 8083:8083
+    networks:
+      - cdc_network
+
+  kafka.dashboard:
+    image: landoop/kafka-topics-ui:0.9.4
+    hostname: kafka.dashboard
+    container_name: kafka.dashboard
+    environment:
+      KAFKA_REST_PROXY_URL: 'http://kafka.rest-proxy:8082'
+      PROXY: 'true'
+    depends_on:
+      - kafka.broker
+      - kafka.rest-proxy
+    ports:
+      - 8000:8000
+    networks:
+      - cdc_network
+
+networks:
+  cdc_network:
+    name: cdc_network
+    driver: bridge

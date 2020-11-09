@@ -1,0 +1,15 @@
+{
+    "name": "etl-connector",
+    "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "tasks.max": "1",
+        "database.hostname": "db.cdc",
+        "database.port": "5432",
+        "database.user": "etl",
+        "database.password": "yImpgv4aNv6JKmbX",
+        "database.dbname" : "etl",
+        "database.server.name": "db.cdc",
+        "plugin.name": "pgoutput",
+        "schema.include.list": "public"
+    }
+}
