@@ -3,3 +3,6 @@ CREATE USER etl SUPERUSER REPLICATION LOGIN ENCRYPTED PASSWORD 'yImpgv4aNv6JKmbX
 GRANT ALL PRIVILEGES ON DATABASE etl to etl;
 
 ALTER SYSTEM SET wal_level = 'logical';
+ALTER SYSTEM SET max_wal_senders = 1;
+ALTER SYSTEM SET max_replication_slots = 1;
+

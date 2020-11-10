@@ -10,6 +10,12 @@
         "database.dbname" : "etl",
         "database.server.name": "db.cdc",
         "plugin.name": "pgoutput",
-        "table.include.list": "public.outbox"
+        "table.include.list": "public.outbox",
+        "transforms": "outbox",
+        "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+        "value.converter": "io.debezium.converters.ByteBufferConverter",
+        "value.converter.delegate.converter.type": "org.apache.kafka.connect.json.JsonConverter",
+        "value.converter.delegate.converter.type.schemas.enable": "false",
+        "transforms.outbox.table.fields.additional.placement": "type:envelope:type"
     }
 }

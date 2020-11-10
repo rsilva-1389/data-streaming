@@ -27,6 +27,7 @@ public class AccountResource {
     @PutMapping
     public void update(@RequestBody Account account) {
         accountService.update(account);
+
     }
 
     @DeleteMapping("/{id}")

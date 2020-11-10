@@ -1,10 +1,10 @@
 package br.com.outbox.study.domain.outbox;
 
+import ch.qos.logback.core.net.SyslogOutputStream;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.util.UUID;
 import javax.persistence.*;
 import org.hibernate.annotations.TypeDef;
 
@@ -22,34 +22,37 @@ import org.hibernate.annotations.TypeDef;
 public class Outbox {
 
     @Id
-    @GeneratedValue
-    private Long id;
+    private UUID id;
 
-    private Long contentId;
+    @Column(name = "aggregatetype")
+    private String aggregateType;
+
+    @Column(name = "aggregateid")
+    private String aggregateId;
 
     @Column(columnDefinition = "jsonb")
-    private JsonNode content;
+    private JsonNode payload;
 
     @Enumerated(EnumType.STRING)
     private EventType type;
-
-    private LocalDateTime createdOn;
 
     public Outbox() {
     }
 
     public static final Outbox of(final Object object, final EventType type) {
         ObjectMapper mapper = new ObjectMapper();
-        JsonNode node = mapper.convertValue(object, JsonNode.class);
-        Long id = node.get("id").asLong();
+        JsonNode payload = mapper.convertValue(object, JsonNode.class);
+        String aggregateType = object.getClass().getSimpleName();
+        String aggregateId = payload.get("id").asText();
 
-        return new Outbox(id, node, type);
+        return new Outbox(aggregateType, aggregateId, payload, type);
     }
 
-    private Outbox(final Long id, final JsonNode content, final EventType type) {
-        this.contentId = id;
-        this.content = content;
+    private Outbox(final String aggregateType, final String aggregateId, final JsonNode payload, final EventType type) {
+        this.id = UUID.randomUUID();
+        this.aggregateType = aggregateType;
+        this.aggregateId = aggregateId;
+        this.payload = payload;
         this.type = type;
-        this.createdOn = LocalDateTime.now(ZoneOffset.UTC);
     }
 }
