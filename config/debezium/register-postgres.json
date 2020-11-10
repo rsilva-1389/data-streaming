@@ -10,6 +10,6 @@
         "database.dbname" : "etl",
         "database.server.name": "db.cdc",
         "plugin.name": "pgoutput",
-        "schema.include.list": "public"
+        "table.include.list": "public.outbox"
     }
 }
